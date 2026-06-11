@@ -569,12 +569,12 @@ elif step.startswith("Step 3"):
         )
 
     if st.button("Run Identification  /  식별 실행"):
-        with st.status("DoWhy identification running...", expanded=True) as _status_id:
-            try:
-                from dowhy import CausalModel
+        try:
+            from dowhy import CausalModel
 
-                id_results = []
-                prog_id = st.progress(0, text="식별 진행 중...")
+            id_results = []
+            prog_id = st.progress(0, text="식별 진행 중...")
+            with st.spinner("DoWhy identification running..."):
                 for idx_t, t_i in enumerate(T_list):
                     try:
                         model_i = CausalModel(data=df, treatment=t_i, outcome=Y, graph=dag_str)
@@ -598,31 +598,29 @@ elif step.startswith("Step 3"):
                         id_results.append({"T (처치)": t_i, "Y (결과)": Y,
                             "Backdoor set (W)": f"ERROR: {str(e_i)[:40]}", "backdoor 기준": "오류"})
                     prog_id.progress((idx_t+1)/len(T_list), text=f"{t_i} 식별 완료 ({idx_t+1}/{len(T_list)})")
-                prog_id.empty()
+            prog_id.empty()
 
-                _status_id.update(label="식별 완료 / Identification complete", state="complete")
-                st.markdown("### 식별 결과 요약  /  Identification Summary")
-                st.dataframe(pd.DataFrame(id_results), use_container_width=True, hide_index=True)
+            st.success("식별 완료 / Identification complete")
+            st.markdown("### 식별 결과 요약  /  Identification Summary")
+            st.dataframe(pd.DataFrame(id_results), use_container_width=True, hide_index=True)
 
-                st.markdown(
-                    '<div class="info-box">' +
-                    '백도어 기준 충족: W를 conditioning하면 T←W→Y 교란 경로가 차단된다.<br>' +
-                    'Backdoor criterion: conditioning on W blocks the T←W→Y confounding path.<br>' +
-                    '<b>※ W 세트가 동일하므로 모든 T에 동일하게 적용된다.</b>' +
-                    '</div>', unsafe_allow_html=True
-                )
+            st.markdown(
+                '<div class="info-box">' +
+                '백도어 기준 충족: W를 conditioning하면 T←W→Y 교란 경로가 차단된다.<br>' +
+                'Backdoor criterion: conditioning on W blocks the T←W→Y confounding path.<br>' +
+                '<b>※ W 세트가 동일하므로 모든 T에 동일하게 적용된다.</b>' +
+                '</div>', unsafe_allow_html=True
+            )
 
-                # 첫 번째 T estimand 상세 표시
-                if "identified_estimand" in st.session_state:
-                    with st.expander(f"Estimand 상세 (T={T})"):
-                        st.code(str(st.session_state["identified_estimand"]))
+            # 첫 번째 T estimand 상세 표시
+            if "identified_estimand" in st.session_state:
+                with st.expander(f"Estimand 상세 (T={T})"):
+                    st.code(str(st.session_state["identified_estimand"]))
 
-            except ImportError:
-                _status_id.update(label="DoWhy 미설치", state="error")
-                st.error("DoWhy not installed. Run: pip install dowhy")
-            except Exception as e:
-                _status_id.update(label="식별 오류", state="error")
-                st.error(f"Identification error: {e}")
+        except ImportError:
+            st.error("DoWhy not installed. Run: pip install dowhy")
+        except Exception as e:
+            st.error(f"Identification error: {e}")
     else:
         if "identified_estimand" in st.session_state:
             st.markdown('<span class="status-ok">식별 결과 있음 / Already identified</span>', unsafe_allow_html=True)
@@ -680,7 +678,7 @@ elif step.startswith("Step 4"):
 
     with col_est:
         if st.button("Run Estimation  /  추정 실행"):
-            with st.status("EconML estimation running... (약 30-60초 소요)", expanded=True) as _status_est:
+            with st.spinner("EconML estimation running... (약 30-60초 소요)"):
                 try:
                     from econml.dml import CausalForestDML
                     from sklearn.ensemble import GradientBoostingRegressor
@@ -744,7 +742,7 @@ elif step.startswith("Step 4"):
                         st.session_state["multi_results"] = multi_results
                         st.session_state["multi_cate"] = multi_cate
                         st.session_state["estimator_map"] = estimator_map
-                        _status_est.update(label="다중 T 추정 완료", state="complete")
+                        st.success("다중 T 추정 완료")
 
                         # 비교 테이블
                         st.markdown("### ATE 비교 테이블  /  Multi-T Comparison")
@@ -855,7 +853,7 @@ elif step.startswith("Step 4"):
                         st.session_state["cate2"] = cate2
                         st.session_state["ate2"] = ate2
 
-                    _status_est.update(label="추정 완료 / Estimation complete", state="complete")
+                        st.success("추정 완료 / Estimation complete")
 
                     # --- 결과 출력 ---
                     if y_mode == "mediation" and ate2 is not None:
@@ -950,10 +948,8 @@ elif step.startswith("Step 4"):
                     plt.close()
 
                 except ImportError:
-                    _status_est.update(label="EconML 미설치", state="error")
                     st.error("EconML not installed. Run: pip install econml")
                 except Exception as e:
-                    _status_est.update(label="추정 오류", state="error")
                     st.error(f"Estimation error: {e}")
         else:
             if "ate" in st.session_state:
@@ -1055,8 +1051,8 @@ elif step.startswith("Step 5"):
             st.warning("검증 방법을 1개 이상 선택해주세요.")
             st.stop()
 
-        with st.status("Refutation running... (수초 내 완료)", expanded=True) as _status_ref:
-            prog_r = st.progress(0, text="반증 검증 시작...")
+        prog_r = st.progress(0, text="반증 검증 시작...")
+        with st.spinner("Refutation running... (수초 내 완료)"):
             try:
                 from sklearn.linear_model import LinearRegression
 
@@ -1148,7 +1144,7 @@ elif step.startswith("Step 5"):
                     all_t_results[t_i] = results_t
                 prog_r.empty()
 
-                _status_ref.update(label="반증 검증 완료 / Refutation complete", state="complete")
+                st.success("반증 검증 완료 / Refutation complete")
 
                 # 결과 표시: T별 탭
                 if len(T_list) > 1:
@@ -1187,7 +1183,6 @@ elif step.startswith("Step 5"):
                 st.session_state["refutation_done"] = True
 
             except Exception as e:
-                _status_ref.update(label="검증 오류", state="error")
                 st.error(f"Refutation error: {e}")
             finally:
                 try:
@@ -1295,7 +1290,7 @@ elif step.startswith("Step 6"):
         st.markdown(f"Filtered: {len(df_filtered)} / {len(df)} 명")
 
     if st.button("Run Counterfactual  /  반사실 추론 실행"):
-        with st.status("Computing counterfactuals...", expanded=True) as _status_cf:
+        with st.spinner("Computing counterfactuals..."):
             try:
                 X_sub = df_filtered[W].values if W else np.ones((len(df_filtered), 1))
                 y_obs = df_filtered[Y].values.astype(float)
@@ -1388,10 +1383,9 @@ elif step.startswith("Step 6"):
                 out_df["반사실_Y"] = y_cf[:20].round(3)
                 out_df["효과(Effect)"] = effect[:20].round(3)
                 st.dataframe(out_df, use_container_width=True, hide_index=True)
-                _status_cf.update(label="반사실 추론 완료 / Counterfactual complete", state="complete")
+                st.success("반사실 추론 완료 / Counterfactual complete")
 
             except Exception as e:
-                _status_cf.update(label=f"오류 / Error", state="error")
                 st.error(f"Counterfactual error: {e}")
     else:
         st.info("시나리오 설정 후 버튼을 누르세요.")
